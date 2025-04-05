@@ -1,133 +1,157 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <style>
-    #game {
-      width: 800px;
-      height: 300px;
-      position: relative;
-      border: 1px solid #000;
-      margin: 0 auto;
-      overflow: hidden;
-    }
-
-    #dino {
-      position: absolute;
-      bottom: 0;
-      left: 50px;
-      font-size: 24px;
-    }
-
-    .obstacle {
-      position: absolute;
-      bottom: 0;
-      width: 20px;
-      background-color: #000;
-
-    }
-
-    
-    .emoji {
-        font-size: 48px;
-      }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dino Game</title>
+  <link rel="stylesheet" href="style.css">
+  
 </head>
 <body>
+
+  <div id="score">Score: <span id="scoreVal">0</span></div>
+  <div id="difficulty">
+    Difficulty:
+    <select id="difficultySelect">
+      <option value="easy">Easy</option>
+      <option value="medium" selected>Medium</option>
+      <option value="hard">Hard</option>
+    </select>
+  </div>
   <div id="game">
-    <div id="dino"><span class="emoji">&#x1F996;</span></div>
+    <div id="dino">
+      <img src="./Images/dino.jpg" alt="Dino">
+    </div>
+    <div id="gameOverScreen">
+      Game Over!<br>
+      <span id="finalScore"></span>
+    </div>
   </div>
 
+  <button id="restartBtn">🔁 Restart</button>
+
   <script>
-    let dino = document.getElementById('dino');
-    let game = document.getElementById('game');
+    const dino = document.getElementById("dino");
+    const game = document.getElementById("game");
+    const scoreDisplay = document.getElementById("scoreVal");
+    const restartBtn = document.getElementById("restartBtn");
+    const gameOverScreen = document.getElementById("gameOverScreen");
+    const finalScore = document.getElementById("finalScore");
+    const difficultySelect = document.getElementById("difficultySelect");
+
     let isJumping = false;
     let gravity = 0.9;
     let gravitySpeed = 0;
     let isGameOver = false;
     let gameSpeed = 10;
+    let score = 0;
 
-    document.addEventListener('keydown', control);
+    difficultySelect.addEventListener("change", function () {
+      const level = difficultySelect.value;
+      if (level === "easy") gameSpeed = 6;
+      else if (level === "medium") gameSpeed = 10;
+      else if (level === "hard") gameSpeed = 14;
+    });
 
-    function control(event) {
-      if (event.keyCode === 32 && !isJumping && !isGameOver) {
+    document.addEventListener("keydown", function(event) {
+      if (event.code === "Space" && !isJumping && !isGameOver) {
         isJumping = true;
         jump();
       }
-    }
+    });
 
     function jump() {
-      let dinoBottom = parseInt(window.getComputedStyle(dino).getPropertyValue('bottom'));
-
-      if (dinoBottom < 200) {
+      let dinoBottom = parseInt(getComputedStyle(dino).bottom);
+      if (dinoBottom < 150) {
         gravitySpeed += gravity;
-        dino.style.bottom = (dinoBottom + gravitySpeed) + 'px';
+        dino.style.bottom = dinoBottom + gravitySpeed + "px";
         requestAnimationFrame(jump);
       } else {
         gravitySpeed = 0;
-        isJumping = false;
         fall();
       }
     }
 
     function fall() {
-      let dinoBottom = parseInt(window.getComputedStyle(dino).getPropertyValue('bottom'));
-
+      let dinoBottom = parseInt(getComputedStyle(dino).bottom);
       if (dinoBottom > 0) {
         gravitySpeed += gravity;
-        dino.style.bottom = (dinoBottom - gravitySpeed) + 'px';
+        dino.style.bottom = dinoBottom - gravitySpeed + "px";
         requestAnimationFrame(fall);
       } else {
+        dino.style.bottom = "0px";
         gravitySpeed = 0;
         isJumping = false;
       }
     }
 
-    function checkCollision(dino, obstacle) {
-      let dinoRect = dino.getBoundingClientRect();
-      let obstacleRect = obstacle.getBoundingClientRect();
+    function createObstacle() {
+      if (isGameOver) return;
 
-      return (
-        dinoRect.bottom >= obstacleRect.top &&
-        dinoRect.top <= obstacleRect.bottom &&
-        dinoRect.right >= obstacleRect.left &&
-        dinoRect.left <= obstacleRect.right
-      );
-    }
+      const obstacle = document.createElement("div");
+      obstacle.classList.add("obstacle");
 
-    function createObstacles() {
-      let obstacle = document.createElement('div');
-      obstacle.classList.add('obstacle');
-      obstacle.style.left = '800px';
+      const img = document.createElement("img");
+      img.src = "./Images/cactus.jpg";
+      img.alt = "Cactus";
+      obstacle.appendChild(img);
 
-      let randomHeight = Math.random() * 150 + 50;
-      obstacle.style.height = randomHeight + 'px';
-
+      obstacle.style.left = "800px";
       game.appendChild(obstacle);
 
-      let obstacleTimer = setInterval(function() {
-        let obstacleLeft = parseInt(window.getComputedStyle(obstacle).getPropertyValue('left'));
-
-        if (obstacleLeft > 0 && obstacleLeft < 50) {
-          if (checkCollision(dino, obstacle)) {
-            isGameOver = true;
-            alert('Game Over!');
-            clearInterval(obstacleTimer);
-          }
+      let moveInterval = setInterval(() => {
+        let obstacleLeft = parseInt(obstacle.style.left);
+        if (obstacleLeft < -40) {
+          clearInterval(moveInterval);
+          game.removeChild(obstacle);
+          score++;
+          scoreDisplay.textContent = score;
+        } else {
+          obstacle.style.left = (obstacleLeft - gameSpeed) + "px";
         }
 
-        obstacle.style.left = (obstacleLeft - gameSpeed) + 'px';
-
-        if (obstacleLeft <= -20) {
-          obstacle.remove();
+        if (checkCollision(dino, obstacle)) {
+          clearInterval(moveInterval);
+          isGameOver = true;
+          finalScore.textContent = `Final Score: ${score}`;
+          gameOverScreen.style.display = "flex";
+          restartBtn.style.display = "block";
         }
       }, 20);
 
-      if (!isGameOver) {
-        setTimeout(createObstacles, 3000);
-      }
+      setTimeout(createObstacle, Math.random() * 2000 + 1500);
     }
 
-    createObstacles();
+    function checkCollision(dino, obstacle) {
+      const dinoRect = dino.getBoundingClientRect();
+      const obsRect = obstacle.getBoundingClientRect();
+
+      return (
+        dinoRect.left < obsRect.right &&
+        dinoRect.right > obsRect.left &&
+        dinoRect.bottom > obsRect.top
+      );
+    }
+
+    function restartGame() {
+      isJumping = false;
+      gravitySpeed = 0;
+      isGameOver = false;
+      score = 0;
+      scoreDisplay.textContent = score;
+      restartBtn.style.display = "none";
+      gameOverScreen.style.display = "none";
+      dino.style.bottom = "0px";
+
+      document.querySelectorAll(".obstacle").forEach(ob => ob.remove());
+
+      createObstacle();
+    }
+
+    restartBtn.addEventListener("click", restartGame);
+
+    createObstacle();
   </script>
+
 </body>
 </html>
